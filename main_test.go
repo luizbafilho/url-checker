@@ -10,24 +10,24 @@ import (
 func TestCheck(t *testing.T) {
 	pr := &PullRequest{
 		Body: `Lorem ipsum dolor sit ame http://www.google.com
-		llo inventore veritatis https://yahoo.com:443 et quasi
+		llo inventore veritatis https://yahoo.com et quasi
 		architecto beatae vitae dicta sunt explicabo.  consequuntur magni
 		dolores eos qui http://foo.local:8888
 		`,
 	}
 
-	uc := UrlChecker{
+	uc := URLChecker{
 		Timeout: 1 * time.Second,
 	}
 	assert.Equal(t, []URLStatus{
 		{"http://www.google.com", true},
-		{"https://yahoo.com:443", true},
+		{"https://yahoo.com", true},
 		{"http://foo.local:8888", false},
 	}, uc.Check(pr))
 }
 
 func TestUrlReachable(t *testing.T) {
-	uc := UrlChecker{
+	uc := URLChecker{
 		Timeout: 1 * time.Second,
 	}
 	var cases = []struct {
