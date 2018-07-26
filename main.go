@@ -1,16 +1,33 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net"
 	"net/url"
+	"os"
 	"regexp"
 	"time"
+
+	"github.com/google/go-github/github"
+	"golang.org/x/oauth2"
 )
+
+type Owner struct {
+	Login string
+}
+
+type Repo struct {
+	Name  string
+	Owner Owner
+}
 
 // PullRequest represents a pull request struct
 type PullRequest struct {
-	Body string
+	Number int
+	Body   string
+	Repo   Repo
 }
 
 // URLStatus represents the status of a URL if it is reachable or not
@@ -80,6 +97,56 @@ func (uc *UrlChecker) urlReachable(u string) (bool, error) {
 	return true, nil
 }
 
-func main() {
+type GHService struct {
+	client *github.Client
+}
 
+func NewGHService(token string) *GHService {
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: token},
+	)
+	tc := oauth2.NewClient(context.Background(), ts)
+	client := github.NewClient(tc)
+
+	return &GHService{
+		client: client,
+	}
+}
+
+// CreatePullRequestComment creates a new pull request comment with the reachability status of the urls
+func (ghs *GHService) CreatePullRequestComment(pr *PullRequest, statuses []URLStatus) error {
+	comment := "### Urls reachability report: \n"
+	for _, s := range statuses {
+		comment += fmt.Sprintf("- %s: %t\n", s.URL, s.Reachable)
+	}
+	input := &github.IssueComment{Body: &comment}
+
+	_, _, err := ghs.client.Issues.CreateComment(context.Background(), pr.Repo.Owner.Login, pr.Repo.Name, pr.Number, input)
+	if err != nil {
+		return fmt.Errorf("Issues.CreateComment returned error: %v", err)
+	}
+
+	return nil
+}
+
+func main() {
+	githubAccessToken := os.Getenv("GITHUB_ACCESS_TOKEN")
+
+	if githubAccessToken == "" {
+		log.Fatal("Invalid GITHUB_ACCESS_TOKEN environment variable")
+	}
+
+	gsh := NewGHService(githubAccessToken)
+	gsh.CreatePullRequestComment(&PullRequest{
+		Number: 5,
+		Repo: Repo{
+			Name: "vimfiles",
+			Owner: Owner{
+				Login: "luizbafilho",
+			},
+		},
+	}, []URLStatus{
+		{"https://google.com", true},
+		{"https://www.yahoo.com", false},
+	})
 }
