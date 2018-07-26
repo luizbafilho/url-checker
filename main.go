@@ -26,6 +26,10 @@ func main() {
 			return err
 		}
 
+		if payload.PullRequest == nil {
+			return c.NoContent(http.StatusNoContent)
+		}
+
 		statuses := uc.Check(payload.PullRequest)
 
 		if err := ghs.CreatePullRequestComment(payload.PullRequest, payload.Repository, statuses); err != nil {
